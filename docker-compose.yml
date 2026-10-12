@@ -1,0 +1,50 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  face-service:
+    build:
+      context: ./face-service
+    restart: unless-stopped
+    environment:
+      MIN_FACE_SIZE: "60"
+      MIN_DET_SCORE: "0.6"
+      MAX_BLUR: "75"
+      FACE_DET_SIZE: "480"
+    ports:
+      - "8000:8000"
+
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - face-service
+    environment:
+      PORT: "4000"
+      MONGO_URI: mongodb://mongo:27017/visitor-poc
+      FACE_SERVICE_URL: http://face-service:8000
+      MATCH_THRESHOLD: "0.35"
+      RETENTION_DAYS: "1"
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: ./web
+      args:
+        VITE_API_BASE: ""
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  mongo-data:
